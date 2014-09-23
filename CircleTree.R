@@ -51,7 +51,7 @@ lines.circletree <- function(x, lwd=c(1,10), padding=.01){
     do.call(segments, seg.coord(x$tree))
 }
 
-plot.circletree <- function(x, par.lines, ...){
+plot.circletree <- function(x, lwd, padding, ...){
     max.f <- function(st)
         if(is.character(st)) return(-Inf) else max(st$r, sapply(st$node, max.f))
     m <- max.f(x$tree)
@@ -65,11 +65,9 @@ print.circletree <- function(x, ...){
 }
 
 
-if(FALSE){
-    cl <- hclust(dist(iris[-5] + 3*matrix(rnorm(nrow(iris)*(ncol(iris)-1)), nrow(iris))))
-    x <- circletree(cl)
-    par(mfrow=1:2)
-    plot(cl)
-    plot(x, lwd=c(1,6), padding=.01)
-}
+cl <- hclust(dist(iris[-5] + 3*matrix(rnorm(nrow(iris)*(ncol(iris)-1)), nrow(iris))))
+x <- circletree(cl)
+par(mfrow=1:2)
+plot(cl)
+plot(x, lwd=c(1,6), padding=.01)
 
