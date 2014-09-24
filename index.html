@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Circletree : Tool for converting a regular dendrogram to a circular one.">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Circletree</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/backlin/CircleTree">View on GitHub</a>
+
+          <h1 id="project_title">Circletree</h1>
+          <h2 id="project_tagline">Tool for converting a regular dendrogram to a circular one.</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/backlin/CircleTree/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/backlin/CircleTree/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="circletree" class="anchor" href="#circletree"><span class="octicon octicon-link"></span></a>CircleTree</h1>
+
+<p>Everybody loves circular dendrograms. They give you more space in the margin to fill with annotations and flirts with the awesome <a href="http://circos.ca">Circos</a> plots. Here's my go at it in R.</p>
+
+<h3>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h3>
+
+<p>At the moment the whole project just consist of a single script that you source into R and you're good to go. If people like it might brush it up and turn it into a CRAN package, so let me know what you think!</p>
+
+<h3>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h3>
+
+<pre><code>x &lt;- hclust(my.data)
+plot(x)
+plot(circletree(x))
+</code></pre>
+
+<p><img src="https://cloud.githubusercontent.com/assets/920717/4388093/6d019712-43e6-11e4-8109-d84d13bc0186.png" alt="circletree0"></p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Circletree maintained by <a href="https://github.com/backlin">backlin</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
