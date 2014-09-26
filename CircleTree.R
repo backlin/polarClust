@@ -1,6 +1,19 @@
 require(data.table)
 
 circletree <- function(cl, labels=sprintf("#%i", 1:length(cl$order)), hang=.1*max(cl$height)){
+    cl$merge <- data.table(ileft = cl$merge[,1], iright=cl$merge[,2], rleft=NA, rright=NA)
+
+    get.angle <- function(i, range=c(0,2*pi)){
+        aa <- quantile(range,
+            quantile(c(0, st$node.r[1]/sum(st$node.r), 1),
+                c(padding, .25, .5-padding, .5, .5+padding, .75, 1-padding)
+            )
+        )
+        x1 <- st$r*sin(aa[c(2,6)])
+        y1 <- st$r*cos(aa[c(2,6)])
+        
+    }
+
     hs <- function(i){
         if(i < 0) return(labels[-i])
         if(tail(cl$height, 1) > 0) cl$height <- tail(cl$height, 1) - cl$height
@@ -72,10 +85,10 @@ print.circletree <- function(x, ...){
 cl <- hclust(dist(iris[-5] + 1*matrix(rnorm(nrow(iris)*(ncol(iris)-1)), nrow(iris))))
 x <- circletree(cl, labels=paste("Plant", 1:150))
 
-#png("CircleTree0.png", 700, 400, bg="transparent")
+png("CircleTree1.png", 700, 400, bg="transparent")
 par(mfrow=1:2)
 plot(cl)
 plot(x, lwd=c(1,6), padding=.01, main="Circle Tree", axes=FALSE, bty="n", label.size=.5)
 points(0, 0, cex=1.3, pch=19)
-#dev.off()
+dev.off()
 
