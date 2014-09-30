@@ -6,6 +6,11 @@
 require(data.table)
 require(RColorBrewer)
 
+na.fill <- function(x, fill){
+    x[is.na(x)] <- fill
+    x
+}
+
 CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding=.01, hang=.1*max(x$height)){
     if(padding < 0 || padding > .5){
         warning("Padding must be on the interval [0, .5].")
@@ -24,11 +29,29 @@ CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding
         ct$ni[k] <- if(is.na(ct$i[k])) 1 else sum(ct[i[k], list(ni, nj)])
         ct$nj[k] <- if(is.na(ct$j[k])) 1 else sum(ct[j[k], list(ni, nj)])
     }
+    
+    # Switch branches to keep to smallest one closes to the center
+    switch.fun <- function(k, is.left){
+        if(ct[k, (ni < nj)] == is.left){
+            x$merge[k,] <<- rev(x$merge[k,])
+            tmp <- ct$i[k]
+            ct$i[k] <<- ct$j[k]
+            ct$j[k] <<- tmp
+            tmp <- ct$labi[k]
+            ct$labi[k] <<- ct$labj[k]
+            ct$labj[k] <<- tmp
+            tmp <- ct$ni[k]
+            ct$ni[k] <<- ct$nj[k]
+            ct$nj[k] <<- tmp
+        }
+        if(!is.na(ct$i[k])) switch.fun(ct$i[k], TRUE)
+        if(!is.na(ct$j[k])) switch.fun(ct$j[k], FALSE)
+    }
+    switch.fun(nrow(ct), ct[nrow(ct), ni > nj])
 
     # Branch lengths
     ct$li <- na.fill(x$height - x$height[ct$i], hang)
     ct$lj <- na.fill(x$height - x$height[ct$j], hang)
-
 
     # Colors
     if(missing(col)) col <- "black"
@@ -39,7 +62,7 @@ CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding
         col <- col[,rep(1:ncol(col), ceiling(n/ncol(col)))[1:n]]
     rgbi <- col[,ifelse(x$merge[,1] < 0, abs(x$merge[,1]), NA)]
     rgbj <- col[,ifelse(x$merge[,2] < 0, abs(x$merge[,2]), NA)]
-    ct$coli <- ct$colj <- as.character(NA)
+    ct$colj <- ct$coli <- as.character(NA)
     for(k in 1:nrow(ct)){
         if(any(is.na(rgbi[,k]))){
             ik <- ct$i[k]
@@ -92,25 +115,27 @@ lines.CircleTree <- function(x, lwd=c(1,10), col, ...){
              col=if(missing(col)) c(x$coli, x$colj) else col,
              ...)
 }
-labels.CircleTree <- function(object, cex=par("cex"), ...){
+labels.CircleTree <- function(object, cex=par("cex"), col=FALSE, ...){
     lab <- rbind(
         object[!is.na(labi), list(
             labels = labi,
             x = 1.02*max(ri)*sin(ai),
             y = 1.02*max(ri)*cos(ai),
             adj = ai > pi,
-            srt = 90-(ai %% pi)*180/pi
+            srt = 90-(ai %% pi)*180/pi,
+            col = if(col) coli else par("fg")
         )],
         object[!is.na(labj), list(
             labels = labj,
             x = 1.02*max(rj)*sin(aj),
             y = 1.02*max(rj)*cos(aj),
             adj = aj > pi,
-            srt = 90-(aj %% pi)*180/pi
+            srt = 90-(aj %% pi)*180/pi,
+            col = if(col) colj else par("fg")
         )]
     )
     for(i in 1:nrow(lab))
-        with(lab[i], text(x, y, labels, srt=srt, adj=c(adj, .5), cex=cex, ...))
+        with(lab[i], text(x, y, labels, srt=srt, adj=c(adj, .5), cex=cex, col=col, ...))
 }
 points.CircleTree <- function(x, col, ...){
     pnt <- rbind(
@@ -128,7 +153,7 @@ points.CircleTree <- function(x, col, ...){
     points(x=pnt$x, y=pnt$y, col=if(missing(col)) pnt$col else col, ...)
 }
 
-plot.CircleTree <- function(x, points=TRUE, labels, label.size=1, expand, lwd=c(1,10), ...){
+plot.CircleTree <- function(x, points=TRUE, labels, label.size=1, label.col=FALSE, expand, lwd=c(1,10), ...){
     if(missing(labels)) labels <- "labi" %in% names(x)
     if(missing(expand)) expand <- if(labels) 2 else 1.04
 
@@ -138,7 +163,7 @@ plot.CircleTree <- function(x, points=TRUE, labels, label.size=1, expand, lwd=c(
     if(points)
         points(x, pch=20)
     if(labels)
-        labels(x, cex=label.size)
+        labels(x, cex=label.size, col=label.col)
 }
 
 #print.CircleTree <- function(x, ...){
