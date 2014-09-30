@@ -1,94 +1,149 @@
+
+# TODO: Switch branches so that the smallest is close to the center of the
+# previous split, e.g. if you a following the left branch put the smallest
+# child branch to the left.
+
 require(data.table)
+require(RColorBrewer)
 
-circletree <- function(cl, labels=sprintf("#%i", 1:length(cl$order)), hang=.1*max(cl$height)){
-    cl$merge <- data.table(ileft = cl$merge[,1], iright=cl$merge[,2], rleft=NA, rright=NA)
-
-    get.angle <- function(i, range=c(0,2*pi)){
-        aa <- quantile(range,
-            quantile(c(0, st$node.r[1]/sum(st$node.r), 1),
-                c(padding, .25, .5-padding, .5, .5+padding, .75, 1-padding)
-            )
-        )
-        x1 <- st$r*sin(aa[c(2,6)])
-        y1 <- st$r*cos(aa[c(2,6)])
-        
+CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding=.01, hang=.1*max(x$height)){
+    if(padding < 0 || padding > .5){
+        warning("Padding must be on the interval [0, .5].")
+        padding <- pmin(.5, pmax(0, padding))
     }
 
-    hs <- function(i){
-        if(i < 0) return(labels[-i])
-        if(tail(cl$height, 1) > 0) cl$height <- tail(cl$height, 1) - cl$height
-        list(r = ifelse(cl$merge[i,] > 0,
-                        cl$height[abs(cl$merge[i,])],
-                        if(hang > 0) cl$height[i] + hang else max(cl$height)),
-             node = lapply(cl$merge[i,], hs))
+    ct <- data.table(i = ifelse(x$merge[,1] > 0, x$merge[,1], NA),
+                     j = ifelse(x$merge[,2] > 0, x$merge[,2], NA))
+    if(!missing(labels)){
+        ct$labi <- ifelse(x$merge[,1] < 0, labels[abs(x$merge[,1])], NA)
+        ct$labj <- ifelse(x$merge[,2] < 0, labels[abs(x$merge[,2])], NA)
     }
-    child.r <- function(st){
-        if(is.list(st$node[[1]])) st$node[[1]] <- child.r(st$node[[1]])
-        if(is.list(st$node[[2]])) st$node[[2]] <- child.r(st$node[[2]])
 
-        st$node.r <- st$r + c(
-            if(is.list(st$node[[1]])) sum(st$node[[1]]$node.r) else 0,
-            if(is.list(st$node[[2]])) sum(st$node[[2]]$node.r) else 0
-        )
-        st
+    # Branch weights (number of leaves)
+    for(k in 1:nrow(ct)){
+        ct$ni[k] <- if(is.na(ct$i[k])) 1 else sum(ct[i[k], list(ni, nj)])
+        ct$nj[k] <- if(is.na(ct$j[k])) 1 else sum(ct[j[k], list(ni, nj)])
     }
-    structure(list(hclust = cl, tree = child.r(hs(nrow(cl$merge)))), class="circletree")
-}
 
-lines.circletree <- function(x, lwd=c(1,10), padding=.01, labels=TRUE, label.size=1){
-    seg.coord <- function(st, x0=0, y0=0, r=0, range=c(0, 2*pi), weight.range){
-        if(missing(weight.range)){
-            min.f <- function(st)
-                if(is.list(st)) min(c(st$node.r, sapply(st$node, min.f))) else Inf
-            weight.range <- c(min.f(st), max(st$node.r))
+    # Branch lengths
+    ct$li <- na.fill(x$height - x$height[ct$i], hang)
+    ct$lj <- na.fill(x$height - x$height[ct$j], hang)
+
+
+    # Colors
+    if(missing(col)) col <- "black"
+    if(is.factor(col)) col <- brewer.pal(9, "Set1")[as.integer(col)]
+    col <- col2rgb(col)/255
+    n <- length(x$order)
+    if(ncol(col) != n)
+        col <- col[,rep(1:ncol(col), ceiling(n/ncol(col)))[1:n]]
+    rgbi <- col[,ifelse(x$merge[,1] < 0, abs(x$merge[,1]), NA)]
+    rgbj <- col[,ifelse(x$merge[,2] < 0, abs(x$merge[,2]), NA)]
+    ct$coli <- ct$colj <- as.character(NA)
+    for(k in 1:nrow(ct)){
+        if(any(is.na(rgbi[,k]))){
+            ik <- ct$i[k]
+            rgbi[,k] <- (ct$ni[ik]*rgbi[,ik] + ct$nj[ik]*rgbj[,ik]) / ct[ik,sum(ni,nj)]
         }
-        aa <- quantile(range,
-            quantile(c(0, st$node.r[1]/sum(st$node.r), 1),
-                c(padding, .25, .5-padding, .5, .5+padding, .75, 1-padding)
-            )
-        )
-        x1 <- st$r*sin(aa[c(2,6)])
-        y1 <- st$r*cos(aa[c(2,6)])
-        if(is.character(st$node[[1]]))
-            text(x1[1], y1[1], st$node[[1]], adj=c(x1[1] < 0, .5), srt=180/pi*atan(y1[1]/x1[1]), xpd=TRUE, cex=label.size)
-        if(is.character(st$node[[2]]))
-            text(x1[2], y1[2], st$node[[2]], adj=c(x1[2] < 0, .5), srt=180/pi*atan(y1[2]/x1[2]), xpd=TRUE, cex=label.size)
-        rbind(
-            data.table(x0 = x0, y0 = y0, x1 = x1, y1 = y1,
-                       lwd=lwd[1] + diff(lwd)*(st$node.r-weight.range[1])/diff(weight.range)),
-            if(is.list(st$node[[1]])){
-                seg.coord(st$node[[1]], x0=x1[1], y0=y1[1], st$r[1], aa[c(1,3)], weight.range)
-            } else NULL,
-            if(is.list(st$node[[2]])){
-                seg.coord(st$node[[2]], x0=x1[2], y0=y1[2], st$r[2], aa[c(5,7)], weight.range)
-            } else NULL
-        )
+        ct$coli[k] <- do.call(rgb, as.list(rgbi[,k]))
+        if(any(is.na(rgbj[,k]))){
+            jk <- ct$j[k]
+            rgbj[,k] <- (ct$ni[jk]*rgbi[,jk] + ct$nj[jk]*rgbj[,jk]) / ct[jk,sum(ni,nj)]
+        }
+        ct$colj[k] <- do.call(rgb, as.list(rgbj[,k]))
     }
-    do.call(segments, seg.coord(x$tree))
+
+    # Branch sectors
+    ct$m <- ct$ni/(ct$ni + ct$nj)
+    ct$s0[nrow(ct)] <- 0
+    ct$s1[nrow(ct)] <- 2*pi
+    for(k in nrow(ct):1){
+        s <- ct[k, quantile(c(s0, s1), c(m*padding, m-m*padding, m+(1-m)*padding, 1-(1-m)*padding))]
+        if(!is.na(ct$i[k])){
+            ct[i[k]]$s0 <- s[1]
+            ct[i[k]]$s1 <- s[2]
+        }
+        if(!is.na(ct$j[k])){
+            ct[j[k]]$s0 <- s[3]
+            ct[j[k]]$s1 <- s[4]
+        }
+    }
+
+    # Branch radius
+    ct$r <- tail(x$height,1) - x$height
+    ct$ri <- ifelse(is.na(ct$i), ct$r + hang, ct[ct$i, r])
+    ct$rj <- ifelse(is.na(ct$j), ct$r + hang, ct[ct$j, r])
+
+    # Branch angles
+    ct$a <- ct[,s0+m*(s1-s0)]
+    ct$ai <- ifelse(is.na(ct$i), ct[,s0+m*(s1-s0)/2], ct[ct$i,s0+m*(s1-s0)])
+    ct$aj <- ifelse(is.na(ct$j), ct[,s1-(1-m)*(s1-s0)/2], ct[ct$j,s0+m*(s1-s0)])
+
+    class(ct) <- c("CircleTree", class(ct))
+    ct
+}
+lines.CircleTree <- function(x, lwd=c(1,10), col, ...){
+    w <- c(x$ni, x$nj)
+    segments(rep(x[, r*sin(a)], 2),
+             rep(x[, r*cos(a)], 2),
+             c(x[, ri*sin(ai)], x[, rj*sin(aj)]),
+             c(x[, ri*cos(ai)], x[, rj*cos(aj)]),
+             lwd = (w-min(w))/diff(range(w))*diff(lwd) + lwd[1],
+             col=if(missing(col)) c(x$coli, x$colj) else col,
+             ...)
+}
+labels.CircleTree <- function(object, cex=par("cex"), ...){
+    lab <- rbind(
+        object[!is.na(labi), list(
+            labels = labi,
+            x = 1.02*max(ri)*sin(ai),
+            y = 1.02*max(ri)*cos(ai),
+            adj = ai > pi,
+            srt = 90-(ai %% pi)*180/pi
+        )],
+        object[!is.na(labj), list(
+            labels = labj,
+            x = 1.02*max(rj)*sin(aj),
+            y = 1.02*max(rj)*cos(aj),
+            adj = aj > pi,
+            srt = 90-(aj %% pi)*180/pi
+        )]
+    )
+    for(i in 1:nrow(lab))
+        with(lab[i], text(x, y, labels, srt=srt, adj=c(adj, .5), cex=cex, ...))
+}
+points.CircleTree <- function(x, col, ...){
+    pnt <- rbind(
+        x[is.na(i), list(
+            x = ri*sin(ai),
+            y = ri*cos(ai),
+            col = coli
+        )], 
+        x[is.na(j), list(
+            x = rj*sin(aj),
+            y = rj*cos(aj),
+            col = colj
+        )]
+    )
+    points(x=pnt$x, y=pnt$y, col=if(missing(col)) pnt$col else col, ...)
 }
 
-plot.circletree <- function(x, lwd, padding, labels=TRUE, label.size=1, ...){
-    max.f <- function(st)
-        if(is.character(st)) return(-Inf) else max(st$r, sapply(st$node, max.f))
-    m <- max.f(x$tree)
-    plot(0, 0, type="n", xlab="", ylab="", xlim=c(-m,m), ylim=c(-m,m), ...)
-    lines(x, lwd, padding, labels, label.size)
+plot.CircleTree <- function(x, points=TRUE, labels, label.size=1, expand, lwd=c(1,10), ...){
+    if(missing(labels)) labels <- "labi" %in% names(x)
+    if(missing(expand)) expand <- if(labels) 2 else 1.04
+
+    lim <- c(-1,1) * max(x$r)*expand
+    plot(0, 0, type="n", xlab="", ylab="", xlim=lim, ylim=lim, ...)
+    lines(x, lwd)
+    if(points)
+        points(x, pch=20)
+    if(labels)
+        labels(x, cex=label.size)
 }
 
-print.circletree <- function(x, ...){
-    cat("Circle tree representation of hclust object.\n")
-    print(x$hclust)
-}
+#print.CircleTree <- function(x, ...){
+#    cat("Circle tree representation of hclust object. Print function not yet implemented.\n")
+#}
 
 
-
-cl <- hclust(dist(iris[-5] + 1*matrix(rnorm(nrow(iris)*(ncol(iris)-1)), nrow(iris))))
-x <- circletree(cl, labels=paste("Plant", 1:150))
-
-png("CircleTree1.png", 700, 400, bg="transparent")
-par(mfrow=1:2)
-plot(cl)
-plot(x, lwd=c(1,6), padding=.01, main="Circle Tree", axes=FALSE, bty="n", label.size=.5)
-points(0, 0, cex=1.3, pch=19)
-dev.off()
 
