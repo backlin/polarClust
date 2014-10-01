@@ -1,16 +1,45 @@
-
-# TODO: Switch branches so that the smallest is close to the center of the
-# previous split, e.g. if you a following the left branch put the smallest
-# child branch to the left.
-
-require(data.table)
-require(RColorBrewer)
-
+##' Impute missing values with a given fill value
+##'
+##' @param x Object.
+##' @param fill The value that should replace missing values in \code{x}.
+##' @return A version of \code{x} with no missing values.
+##' @author Christofer \enc{Bäcklin}{Backlin}
 na.fill <- function(x, fill){
     x[is.na(x)] <- fill
     x
 }
 
+
+##' Convert a hclust object to a circular dendrogram
+##' 
+##' Any \code{\link{hclust}} object can be converted to a circular dendrogram
+##' using this function and then plotted with the standard graphics functions.
+##' 
+##' @param x \code{\link{hclust}} object.
+##' @param labels Chraracter vector of leaf labels.
+##' @param col Vector of leaf colours.
+##' @param padding Spacing between branches.
+##' @param hang Branch lengths of the leaves.
+##' @return An object of class \code{CircleTree}
+##' @examples
+##' my.data <- iris[-5] + .5*matrix(rnorm(nrow(iris)*(ncol(iris)-1)), nrow(iris))
+##' cl <- hclust(dist(my.data))
+##' 
+##' # Color according to class
+##' x <- CircleTree(cl,
+##'                 labels=sprintf("%s %i", iris$Species, 1:150),
+##'                 col=iris$Species,
+##'                 padding=.01)
+##' plot(x, label.col=TRUE)
+##' 
+##' # Color branches
+##' x <- CircleTree(cl, labels=sprintf("%s %i", iris$Species, 1:150),
+##'                 col=cutree(cl, 3), padding=0, hang=.5)
+##' plot(x, labels=FALSE)
+##' @seealso plot.CircleTree
+##' @author Christofer \enc{Bäcklin}{Backlin}
+##' @export
+##' @import data.table
 CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding=.01, hang=.1*max(x$height)){
     if(padding < 0 || padding > .5){
         warning("Padding must be on the interval [0, .5].")
@@ -55,7 +84,10 @@ CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding
 
     # Colors
     if(missing(col)) col <- "black"
-    if(is.factor(col)) col <- brewer.pal(9, "Set1")[as.integer(col)]
+    if(is.factor(col)){
+        require(RColorBrewer)
+        col <- brewer.pal(9, "Set1")[as.integer(col)]
+    }
     col <- col2rgb(col)/255
     n <- length(x$order)
     if(ncol(col) != n)
@@ -105,6 +137,49 @@ CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding
     class(ct) <- c("CircleTree", class(ct))
     ct
 }
+
+
+##' Plot functions for circular dendrograms
+##' 
+##' Class specific methods for class \code{\link{CircleTree}}.
+##' 
+##' @param x \code{\link{CircleTree}} object.
+##' @param lines Whether to plot the trees branches.
+##' @param points Whether to plot the trees leaves.
+##' @param labels Whether to plot the leaves' labels.
+##' @param label.size Relative text size of labels.
+##' @param label.col Whether to colour labels by leaf colour.
+##' @param expand Controls how much white space should surround the plot.
+##'   Use \code{expand=1} for no white space and larger numbers for more.
+##' @param lwd Minimum and maximum branch widths.
+##' @param ... Sent to \code{\link{plot}}.
+##' @param bg Background colour.
+##' @return Nothing, produces a plot.
+##' @seealso CircleTree
+##' @author Christofer \enc{Bäcklin}{Backlin}
+##' @export
+plot.CircleTree <- function(x, lines=TRUE, points=TRUE, labels, label.size=1, label.col=FALSE, expand, lwd=c(1,10), ..., bg){
+    if(missing(labels)) labels <- "labi" %in% names(x)
+    if(missing(expand)) expand <- if(labels) 2 else 1.04
+
+    lim <- c(-1,1) * max(x$r)*expand
+    plot(0, 0, type="n", xlab="", ylab="", xlim=lim, ylim=lim, ...)
+    if(!missing(bg)){
+        do.call(rect, as.list(c(par("usr")[c(1,3,2,4)], border=NA, col=bg)))
+        r <- setdiff(unique(abs(pretty(par("usr")[1:2]))), 0)
+        symbols(rep(0, length(r)), circles=r, inches=FALSE, fg="white", add=TRUE)
+    }
+    if(lines)
+        lines(x, lwd)
+    if(points)
+        points(x, pch=20)
+    if(labels)
+        labels(x, cex=label.size, col=label.col)
+}
+
+##' @param col Colour.
+##' @rdname plot.CircleTree
+##' @export
 lines.CircleTree <- function(x, lwd=c(1,10), col, ...){
     w <- c(x$ni, x$nj)
     segments(rep(x[, r*sin(a)], 2),
@@ -115,6 +190,10 @@ lines.CircleTree <- function(x, lwd=c(1,10), col, ...){
              col=if(missing(col)) c(x$coli, x$colj) else col,
              ...)
 }
+##' @param object Same as \code{x}. Named differently to keep S3 consistency.
+##' @param cex Relative size, see \code{\link{par}} for details.
+##' @rdname plot.CircleTree
+##' @export
 labels.CircleTree <- function(object, cex=par("cex"), col=FALSE, ...){
     lab <- rbind(
         object[!is.na(labi), list(
@@ -137,6 +216,8 @@ labels.CircleTree <- function(object, cex=par("cex"), col=FALSE, ...){
     for(i in 1:nrow(lab))
         with(lab[i], text(x, y, labels, srt=srt, adj=c(adj, .5), cex=cex, col=col, ...))
 }
+##' @rdname plot.CircleTree
+##' @export
 points.CircleTree <- function(x, col, ...){
     pnt <- rbind(
         x[is.na(i), list(
@@ -153,18 +234,6 @@ points.CircleTree <- function(x, col, ...){
     points(x=pnt$x, y=pnt$y, col=if(missing(col)) pnt$col else col, ...)
 }
 
-plot.CircleTree <- function(x, points=TRUE, labels, label.size=1, label.col=FALSE, expand, lwd=c(1,10), ...){
-    if(missing(labels)) labels <- "labi" %in% names(x)
-    if(missing(expand)) expand <- if(labels) 2 else 1.04
-
-    lim <- c(-1,1) * max(x$r)*expand
-    plot(0, 0, type="n", xlab="", ylab="", xlim=lim, ylim=lim, ...)
-    lines(x, lwd)
-    if(points)
-        points(x, pch=20)
-    if(labels)
-        labels(x, cex=label.size, col=label.col)
-}
 
 #print.CircleTree <- function(x, ...){
 #    cat("Circle tree representation of hclust object. Print function not yet implemented.\n")
