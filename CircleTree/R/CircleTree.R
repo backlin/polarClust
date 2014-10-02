@@ -158,16 +158,22 @@ CircleTree <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, padding
 ##' @seealso CircleTree
 ##' @author Christofer \enc{Bäcklin}{Backlin}
 ##' @export
-plot.CircleTree <- function(x, lines=TRUE, points=TRUE, labels, label.size=1, label.col=FALSE, expand, lwd=c(1,10), ..., bg){
+plot.CircleTree <- function(x, lines=TRUE, points=TRUE, labels, label.size=1, label.col=FALSE, expand, lwd=c(1,10), ..., bg.col, grid.col="#ffffff40"){
     if(missing(labels)) labels <- "labi" %in% names(x)
     if(missing(expand)) expand <- if(labels) 2 else 1.04
 
     lim <- c(-1,1) * max(x$r)*expand
     plot(0, 0, type="n", xlab="", ylab="", xlim=lim, ylim=lim, ...)
-    if(!missing(bg)){
-        do.call(rect, as.list(c(par("usr")[c(1,3,2,4)], border=NA, col=bg)))
+    if(!missing(bg.col)){
+        do.call(rect, as.list(c(par("usr")[c(1,3,2,4)], border=NA, col=bg.col)))
         r <- setdiff(unique(abs(pretty(par("usr")[1:2]))), 0)
-        symbols(rep(0, length(r)), circles=r, inches=FALSE, fg="white", add=TRUE)
+
+        n.seg <- round(400*r/max(r))
+        for(i in seq_along(r)){
+            a <- 2*pi*0:n.seg[i]/n.seg[i]
+            segments(r[i]*sin(a[-n.seg[i]-1]), r[i]*cos(a[-n.seg[i]-1]),
+                     r[i]*sin(a[-1]), r[i]*cos(a[-1]), col=grid.col)
+        }
     }
     if(lines)
         lines(x, lwd)
