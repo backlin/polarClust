@@ -35,21 +35,32 @@
 <a name="circletree" class="anchor" href="#circletree"><span class="octicon octicon-link"></span></a>CircleTree</h1>
 
 <p>Everybody loves circular dendrograms. They give you more space in the margin to fill with annotations and flirts with the awesome <a href="http://circos.ca">Circos</a> plots. Here's my go at it in R.</p>
+<p>This is only a first sketch of the tool and its structure will most likely change in the near future (I have already gotten annoyed by the implementation of some details), but feel free to try it out in the meantime.
+Bugs reports, suggestions, and comment are most welcome!</p>
 
 <h3>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h3>
 
-<p>At the moment the whole project just consist of a single script that you source into R and you're good to go. If people like it might brush it up and turn it into a CRAN package, so let me know what you think!</p>
-
-<h3>
-<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h3>
-
-<pre><code>x &lt;- hclust(my.data)
-plot(x)
-plot(circletree(x))
+<p>
+<pre><code>library(devtools)
+install_github("backlin/CircleTree/CircleTree")
 </code></pre>
 
-<p><img src="https://cloud.githubusercontent.com/assets/920717/4388093/6d019712-43e6-11e4-8109-d84d13bc0186.png" alt="circletree0"></p>
+<h3>
+<a name="demo" class="anchor" href="#demo"><span class="octicon octicon-link"></span></a>Demo</h3>
+
+<pre><code>my.data <- iris[-5]
+regular &lt;- hclust(dist(my.data))
+
+library(CircleTree)
+circular &lt;- CircleTree(regular, labels=iris$Species, col=iris$Species)
+
+par(mfrow=1:2)
+plot(regular)
+plot(circular)
+</code></pre>
+
+<p><img src="images/demo.png" alt="circletree0"></p>
       </section>
     </div>
 
