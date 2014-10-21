@@ -76,21 +76,9 @@ polar.clust <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, paddin
     ct
 }
 
-#' Cut a tree inte groups
-#'
-#' A wrapper that allows cutting polar dendrograms with \code{\link{cutree}}.
-#'
-#' @param tree \code{\link{polar.clust}} object.
-#' @param k Number of groups.
-#' @param h Height at which to cut the tree.
-#' @seealso cutree
-#' @author Christofer \enc{Bäcklin}{Backlin}
-#' @export
-cutree.polar.clust <- function(tree, k, h){
-    if(missing(k)){
-        k <- sum((tree$r < h) != (tree$ri < h)) + sum((tree$r < h) != (tree$rj < h))
-    }
-    cutree(list(merge = as.matrix(tree[,list(i,j)])), k)
+order.polar.clust <- function(x){
+    rbind(x[i < 0, list(i=-i, a=ai)],
+          x[j < 0, list(i=-j, a=aj)])[order(a), i]
 }
 
 #' colors-set or labels to a polar dendrogram
@@ -154,7 +142,7 @@ cutree.polar.clust <- function(tree, k, h){
 #' @export
 `labels<-.polar.clust` <- function(object, value){
     if(is.null(value)){
-        object$labi <- object$labj <- NULL
+        if("labi" %in% names(object)) object$labi <- object$labj <- NULL
         return(object)
     }
 
@@ -182,10 +170,11 @@ cutree.polar.clust <- function(tree, k, h){
 #' with \code{type="n"} and add the annotation functions.
 #' 
 #' @param x \code{\link{polar.clust}} object.
-#' @param type Plot type. \code{"l"} is normal and \code{"n"} is blank (letting
+#' @param type Plot type, see \code{\link{plot}}.
 #'   you add whatever layers you want manually.
 #' @param lines Whether to plot the trees branches.
 #' @param points Whether to plot the trees leaves.
+#' @param fill Whether to fill the area under labelled branches, see \code{\link{branches}}.
 #' @param labels Whether to plot the leaves' labels.
 #' @param label.col Whether to colour labels by leaf colour.
 #' @param label.size Relative text size of labels.
@@ -198,17 +187,20 @@ cutree.polar.clust <- function(tree, k, h){
 #' @return Nothing, produces a plot.
 #' @author Christofer \enc{Bäcklin}{Backlin}
 #' @export
-plot.polar.clust <- function(x, type=c("l", "n"), labels, label.col, label.size=1, las=2, expand, axes=TRUE, ..., bg.col, grid.col="gray90"){
+plot.polar.clust <- function(x, type=c("b", "l", "p", "n"), sector, fill=TRUE, labels, label.col, label.size=1, las=2, expand, axes=TRUE, ..., bg.col, grid.col="gray90"){
+    type <- match.arg(type)
     if(missing(labels)) labels <- "labi" %in% names(x)
     if(missing(expand)) expand <- if(labels) 1.5 else 1.04
-    type <- match.arg(type)
+    if(length(expand) == 1) expand <- rep(expand, 2)
+    xl <- c(-1,1) * max(x$r)*expand[1]
+    yl <- c(-1,1) * max(x$r)*expand[2]
 
-    lim <- c(-1,1) * max(x$r)*expand
-
-    plot(0, 0, type="n", xlab="", ylab="", xlim=lim, ylim=lim, axes=FALSE, ann=FALSE, ...)
+    plot(0, 0, type="n", xlab="", ylab="", xlim=xl, ylim=yl, axes=FALSE, ann=FALSE, ...)
     if(!missing(bg.col)){
         do.call(rect, as.list(c(par("usr")[c(1,3,2,4)], border=NA, col=bg.col)))
     }
+    if(missing(sector))
+        sector <- pi/2+c(.15*axes, 2*pi)
 
     # Grid circles
     r <- pretty(c(0, par("usr")[2]))
@@ -220,13 +212,15 @@ plot.polar.clust <- function(x, type=c("l", "n"), labels, label.col, label.size=
                  r[i]*sin(a[-1]), r[i]*cos(a[-1]), col=grid.col)
     }
 
-    sect <- pi/2+c(.15*axes, 2*pi)
-    if(missing(type) || type == "l")
-        lines(x, lwd=c(1,10), sector=sect)
-    if(missing(type) || type == "p")
-        points(x, sector=sect, pch=20)
+    # Branches
+    if(fill)
+        branches(x, sector=sector, fill=TRUE, lightness=.7)
+    if(missing(type) || type %in% c("b", "l"))
+        lines(x, lwd=c(1,10), sector=sector)
+    if(missing(type) || type %in% c("b", "p"))
+        points(x, sector=sector, pch=20)
     if(labels)
-        labels(x, sector=sect, cex=label.size, col=label.col, las=las)
+        text(x, sector=sector, cex=label.size, col=label.col, las=las)
     if(axes) axis(1, at=r, pos=0)
 }
 
@@ -254,13 +248,12 @@ lines.polar.clust <- function(x, lwd=c(1,10), col, sector=c(0, 2*pi), ...){
              col = col,
              ...)
 }
-#' @param object Same as \code{x}. Named differently to keep S3 consistency.
 #' @param r Radius at which to plot the labels.
 #' @param cex Relative size, see \code{\link{par}} for details.
 #' @param las Label orientation, see \code{\link{par}}.
 #' @rdname plot.polar.clust
 #' @export
-labels.polar.clust <- function(object, r, sector=c(0,2*pi), cex=par("cex"), col, las=par("las"), ...){
+text.polar.clust <- function(x, r, sector=c(0,2*pi), cex=par("cex"), col, las=par("las"), ...){
     if(missing(col)){
         col <- if("coli" %in% names(x)){
             c(x[!is.na(labi), coli], x[!is.na(labj), colj])
@@ -270,17 +263,17 @@ labels.polar.clust <- function(object, r, sector=c(0,2*pi), cex=par("cex"), col,
     } else if(is.null(col) || col %in% c(FALSE, NA)){
         col <- par("fg")
     }
-    r.max <- if(missing(r)) max(object$ri, object$rj) else r
+    r.max <- if(missing(r)) max(x$ri, x$rj) else r
     ang.i <- x[!is.na(labi), (s0+(s1-s0)*m/2)*diff(range(sector))+sector[1]]
     ang.j <- x[!is.na(labj), (s1-(s1-s0)*(1-m)/2)*diff(range(sector))+sector[1]]
     lab <- rbind(
-        object[!is.na(labi), list(
+        x[!is.na(labi), list(
             labels = labi,
             x = 1.02*r.max*sin(ang.i),
             y = 1.02*r.max*cos(ang.i),
             a = ang.i*180/pi
         )],
-        object[!is.na(labj), list(
+        x[!is.na(labj), list(
             labels = labj,
             x = 1.02*r.max*sin(ang.j),
             y = 1.02*r.max*cos(ang.j),
@@ -306,7 +299,7 @@ labels.polar.clust <- function(object, r, sector=c(0,2*pi), cex=par("cex"), col,
         as.numeric(lab$a + 90 %% 360 > 180)
 
     )
-    for(i in 1:nrow(lab))
+    if(nrow(lab) > 0) for(i in 1:nrow(lab))
         with(lab[i], text(x, y, labels, srt=srt, adj=c(adjx, adjy), cex=cex, col=col[i], ...))
 }
 #' @rdname plot.polar.clust
@@ -330,95 +323,5 @@ points.polar.clust <- function(x, sector=c(0,2*pi), col, ...){
         )]
     )
     with(pnt, points(x=x, y=y, col=col, ...))
-}
-
-#' Extracting line numbers of desired branches
-#'
-#' Complement to \code{\link{cutree.polar.clust}}.
-#' 
-#' @param x \code{\link{polar.clust}} object.
-#' @param k Number of branches to split \code{x} into.
-#' @param h Height at which to split \code{x}.
-#' @author Christofer \enc{Bäcklin}{Backlin}
-#' @export
-get.branch.index <- function(x, k, h){
-    if(missing(k) == missing(h))
-        stop("You must supply `k` or `h`, but not both.")
-    if(!missing(k)){
-        branches <- rep(nrow(x), k)
-        for(b in 2:k){
-            split <- which.min(x[branches[1:(b-1)], pmin(ri,rj)])
-            branches[c(split,b)] <- unlist(x[branches[split],list(i,j)])
-        }
-        branches
-    } else {
-        c(x[r < h & ri >= h, i], x[r < h & rj >= h, j])
-    }
-}
-
-#' Color branches of a polar dendrogram
-#'
-#' This function can either draw a line in the margin outside each branch
-#' (\code{fill=FALSE}) or color the area underneath a branch (\code{fill=TRUE}).
-#' 
-#' @param x \code{\link{polar.clust}} object.
-#' @param k Number of branches to split \code{x} into.
-#' @param h Height at which to split \code{x}.
-#' @param fill Annotation style, see the details of this function.
-#' @param lwd Line width, should be pretty large to be clearly visible.
-#' @param sector See \code{\link{plot.polar.clust}}.
-#' @param col Branch colors. If omitted it will be taken from \code{x} (if
-#'   it has first been specified with \code{\link{colors<-}}).
-#' @param alpha Opacity values (0 is transparent, 1 is opaque).
-#' @param lightness Color lightness (0 is the original color, 1 is white, and
-#'   values in between are interpolated).
-#' @example examples/polar.clust.R
-#' @author Christofer \enc{Bäcklin}{Backlin}
-#' @export
-branches <- function(x, k, h, fill=FALSE, lwd=20, sector=c(0, 2*pi), col, alpha, lightness){
-    get.i <- function(i) rbind(x[i,list(r,a)],
-        if(x[i,i] > 0) get.i(x[i,i]) else x[i,list(r=ri, a=ai)])
-    get.j <- function(i) rbind(
-        if(x[i,j] > 0) get.j(x[i,j]) else x[i,list(r=rj, a=aj)],
-        x[i,list(r,a)])
-    get.leaves <- function(i) rbind(
-        if(x[i,i > 0]) get.leaves(x[i,i]) else x[i,list(r=ri, a=ai)],
-        if(x[i,j > 0]) get.leaves(x[i,j]) else x[i,list(r=rj, a=aj)])
-    ii <- get.branch.index(x, k, h)
-    if(missing(col)){
-        if("coli" %in% names(x)){
-            col <- sweep(
-                sweep(col2rgb(x[ii,coli]), 2, x[ii,ni], "*") +
-                sweep(col2rgb(x[ii,colj]), 2, x[ii,nj], "*"),
-                2, x[ii, ni+nj], "/")/255
-        } else {
-            require(RColorBrewer)
-            col <- col2rgb(brewer.pal(length(ii), "Set1"))/255
-        }
-    } else {
-        col <- col2rgb(col)/255
-    }
-    if(!missing(lightness))
-        col <- col + lightness*(1-col)
-    if(!missing(alpha)){
-        if(fill && alpha < 1)
-            warning("Specifying both `fill = TRUE` and `alpha < 1` is violating the laws of good taste (just look at it!).")
-        col <- rbind(col, alpha)
-    }
-    col <- apply(col, 2, function(x) do.call(rgb, as.list(x)))
-
-    for(i in seq_along(ii)){
-        if(fill){
-            b <- rbind(get.i(ii[i]), get.leaves(ii[i])[,list(r=max(r), a)], get.j(ii[i]))
-            polygon(x = b$r*sin(b$a*diff(sector)+sector[1]),
-                    y = b$r*cos(b$a*diff(sector)+sector[1]),
-                    border=col[i], col=col[i], lwd=lwd)
-        } else {
-            b <- get.leaves(ii[i])[,list(r=max(r), a)]
-            lines(x = b$r*sin(b$a*diff(sector)+sector[1]),
-                  y = b$r*cos(b$a*diff(sector)+sector[1]),
-                  lend=2, ljoin=1, col=col[i], lwd=lwd)
-        }
-    }
 }
 

@@ -15,6 +15,11 @@ labels(x) <- NULL # Clear the current labels
 labels(x) <- paste("Branch", 1:6)
 plot(x, las=1)
 
+# Annotate manually
+labels(x) <- NULL
+x <- label.branches(x)
+plot(x, las=1)
+
 # Manual compilation of the plot
 s <- c(.4,2.2)*pi
 colors(x) <- NULL
