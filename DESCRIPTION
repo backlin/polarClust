@@ -1,13 +1,12 @@
 Encoding: UTF-8
-Package: CircleTree
+Package: polarClust
 Type: Package
-Title: Circular clustering trees
+Title: Polar representation of clustering trees
 Version: 1.0-1
 Date: 2014-10-01
 Author: Christofer Backlin
 Maintainer: Christofer Backlin <christofer.backlin@medsci.uu.se>
-Description: Functions for plotting clustering dendrograms in a circular
-    fashion.
+Description: Functions for plotting clustering dendrograms in polar coordinates.
 Imports:
     data.table
 Suggests:
