@@ -152,7 +152,7 @@ order.polar.clust <- function(x){
         object$labi <- ifelse(object$i < 0, value[abs(object$i)], object$labi)
         object$labj <- ifelse(object$j < 0, value[abs(object$j)], object$labj)
     } else {
-        ii <- get.branch.index(x, k=length(value))
+        ii <- get.branch.index(object, k=length(value))
         ii <- ii[order(object$r[ii])]
         newi <- value[match(object$i, ii)]
         newj <- value[match(object$j, ii)]
