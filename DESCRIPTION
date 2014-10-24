@@ -2,8 +2,8 @@ Encoding: UTF-8
 Package: polarClust
 Type: Package
 Title: Polar representation of clustering trees
-Version: 1.0-1
-Date: 2014-10-01
+Version: 1.0-2
+Date: 2014-10-24
 Author: Christofer Backlin
 Maintainer: Christofer Backlin <christofer.backlin@medsci.uu.se>
 Description: Functions for plotting clustering dendrograms in polar coordinates.

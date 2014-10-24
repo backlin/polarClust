@@ -6,3 +6,5 @@ f <- file.info(dir(, ".*\\.tar\\.gz"))
 new.build <- rownames(f)[which.max(f$mtime)]
 system(sprintf("R CMD check %s --as-cran", new.build))
 
+system("R CMD INSTALL .")
+

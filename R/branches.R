@@ -64,8 +64,6 @@ get.branch.index <- function(x, k, h){
 #' (\code{fill=FALSE}) or color the area underneath a branch (\code{fill=TRUE}).
 #' 
 #' @param x \code{\link{polar.clust}} object.
-#' @param k Number of branches to split \code{x} into.
-#' @param h Height at which to split \code{x}.
 #' @param fill Annotation style, see the details of this function.
 #' @param lwd Line width, should be pretty large to be clearly visible.
 #' @param sector See \code{\link{plot.polar.clust}}.
@@ -144,7 +142,11 @@ branches <- function(x, fill=FALSE, lwd, sector=c(0, 2*pi), col, alpha=1, lightn
 }
 
 #' Locate branches graphically
-#' @param x \code{\link{polarClust}} object.
+#'
+#' @param x \code{\link{polar.clust}} object.
+#' @return A data.table with relevant attributes.
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
 locate.branches <- function(x){
     plot(x, type="n", labels=FALSE, axes=FALSE)
     lines(x)
@@ -170,6 +172,13 @@ locate.branches <- function(x){
     bb
 }
 
+
+#' Annotate a polar dendrogram
+#' 
+#' @param x \code{\link{polar.clust}} object.
+#' @return A modified \code{\link{polar.clust}} object.
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
 label.branches <- function(x){
     cat("Click a split in the plot to assign labels to its branches. ")
     cat("Assign a blank label to ignore a branch. Right click to stop labeling.\n")
