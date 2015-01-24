@@ -135,7 +135,7 @@ branches <- function(x, fill=FALSE, lwd, sector=c(0, 2*pi), col, alpha=1, lightn
                 b <- get.leaves(ii[i])[,list(r=max(r), a)]
                 lines(x = b$r*sin(b$a*diff(sector)+sector[1]),
                       y = b$r*cos(b$a*diff(sector)+sector[1]),
-                      lend=2, ljoin=1, col=col[i], lwd=lwd, ...)
+                      lend=1, ljoin=1, col=col[i], lwd=lwd, ...)
             }
         }
     }
@@ -179,51 +179,61 @@ locate.branches <- function(x){
 #' @return A modified \code{\link{polar.clust}} object.
 #' @author Christofer \enc{Bäcklin}{Backlin}
 #' @export
-label.branches <- function(x){
-    cat("Click a split in the plot to assign labels to its branches. ")
-    cat("Assign a blank label to ignore a branch. Right click to stop labeling.\n")
-
-    plot(x, axes=FALSE, sector=c(0, 2*pi))
-    title("Interactive labeling in progess", col.main="grey")
-    mtext("Right click or ctrl-c to exit", 3, 0, col="grey")
-    #lines(x)
-    #points(x)
-    if(is.null(x$labi)) x$labi <- as.character(NA)
-    if(is.null(x$labj)) x$labj <- as.character(NA)
-
-    l <- locator(1)
-    count <- 1
-    while(!is.null(l)){
-        split.dist <- apply(
-            sweep(x[,list(x=r*sin(a*2*pi), y=r*cos(a*2*pi))], 2, unlist(l))^2,
-            1, function(x) sqrt(sum(x)))
-        b <- which.min(split.dist)
-
-        mark <- x[b, list(
-            x = r*sin(a*2*pi),    y = r*cos(a*2*pi),
-            xi = ri*sin(ai*2*pi), yi = ri*cos(ai*2*pi),
-            xj = rj*sin(aj*2*pi), yj = rj*cos(aj*2*pi)
-        )]
-        points(mark$x, mark$y, col="springgreen3", cex=2.2)
-        text(mark$x, mark$y, labels=count, col="springgreen3", pos=3, cex=2.2)
-        points(c(mark$xi, mark$xj), c(mark$yi, mark$yj), col=c("red", "blue"), cex=1.5)
-
-        lab <- readline(sprintf("Left label (#%i red): ", count))
-        if(lab != ""){
-            x$labi[b] <- lab
-            text(mark$xi, mark$yi, labels=lab, col="red", pos=3)
-        }
-        lab <- readline(sprintf("Right label (#%i blue): ", count))
-        if(lab != ""){
-            x$labj[b] <- lab
-            text(mark$xj, mark$yj, labels=lab, col="blue", pos=3)
-        }
-
-        cat("Click a new split to continue labeling or right click to exit.\n")
-        l <- locator(1)
-        count <- count + 1
+label.branches <- function(x, labels, col, redraw=TRUE){
+    if(redraw){
+        plot(x, axes=FALSE, sector=c(0, 2*pi))
+        title("Interactive labeling in progess", col.main="grey")
+        mtext("Right click when done or press ctrl-c to cancel", 3, 0, col="grey")
     }
-    dev.off()
+    if(missing(labels)){
+        cat("Name the branches you like to label, one per line. Enter a blank line when done.\n")
+        ans <- readline()
+        labels <- c()
+        while(ans != ""){
+            labels <- c(labels, ans)
+            ans <- readline()
+        }
+    }
+
+    #' @param x Two column table with x and y coordinates.
+    #' @param l Query point.
+    node.dist <- function(x, l)
+        sqrt(rowSums(sweep(x, 2, unlist(l))^2))
+    follow.i <- function(x, n, col){
+        x[n, segments(r*sin(a*2*pi), r*cos(a*2*pi),
+                      ri*sin(ai*2*pi), ri*cos(ai*2*pi), col=col, lwd=2)]
+        if(x[n,i] < 0) x[n,i] else follow.i(x, x[n,i], col)
+    }
+    follow.j <- function(x, n, col){
+        x[n, segments(r*sin(a*2*pi), r*cos(a*2*pi),
+                      rj*sin(aj*2*pi), rj*cos(aj*2*pi), col=col, lwd=2)]
+        if(x[n,j] < 0) x[n,j] else follow.j(x, x[n,j], col)
+    }
+
+    if(missing(col)) col <- hsv(h=seq(0, 1, length.out=length(labels)+1))[-1]
+    l <- rbindlist(Map(function(label, col){
+        cat(sprintf("Click the branches/leaves from which the `%s` branch begins and ends (counter clockwise).\n", label))
+        l <- sapply(list(follow.i, follow.j), function(fun){
+            l <- locator(1)
+            dists <- data.table(
+                i = node.dist(x[, list(x=ri*sin(ai*2*pi), y=ri*cos(ai*2*pi))], l),
+                j = node.dist(x[, list(x=rj*sin(aj*2*pi), y=rj*cos(aj*2*pi))], l))
+            min.dist <- lapply(dists, min)
+            l <- if(min.dist$i < min.dist$j){
+                x[which.min(dists$i), i]
+            } else {
+                x[which.min(dists$j), j]
+            }
+            if(l > 0) l <- fun(x, l, col=col)
+            do.call(points, data.table(col = col, cex=2, lwd=2, rbind(
+                    x[i == l, list(x=ri*sin(ai*2*pi), y=ri*cos(ai*2*pi))],
+                    x[j == l, list(x=rj*sin(aj*2*pi), y=rj*cos(aj*2*pi))])))
+            l
+        })
+        data.table(from=l[1], to=l[2], label=label, col=col)
+    }, labels, col))
+    attr(x, "branches") <- l
     x
 }
+
 

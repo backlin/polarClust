@@ -76,6 +76,13 @@ polar.clust <- function(x, labels=sprintf("#%i", 1:length(x$order)), col, paddin
     ct
 }
 
+#' Sample order in clustering
+#' 
+#' 
+#' @param x \code{\link{polar.clust}} object.
+#' @return The clockwise order in which the samples appear in a polar clustering.
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
 order.polar.clust <- function(x){
     rbind(x[i < 0, list(i=-i, a=ai)],
           x[j < 0, list(i=-j, a=aj)])[order(a), i]
@@ -191,9 +198,9 @@ plot.polar.clust <- function(x, type=c("b", "l", "p", "n"), sector, fill=TRUE, l
     type <- match.arg(type)
     if(missing(labels)) labels <- "labi" %in% names(x)
     if(missing(expand)) expand <- if(labels) 1.5 else 1.04
-    if(length(expand) == 1) expand <- rep(expand, 2)
-    xl <- c(-1,1) * max(x$r)*expand[1]
-    yl <- c(-1,1) * max(x$r)*expand[2]
+    if(length(expand) < 4) expand <- rep(expand, 4)[1:4]
+    xl <- c(-1,1) * max(x$r)*expand[c(1,3)]
+    yl <- c(-1,1) * max(x$r)*expand[c(2,4)]
 
     plot(0, 0, type="n", xlab="", ylab="", xlim=xl, ylim=yl, axes=FALSE, ann=FALSE, ...)
     if(!missing(bg.col)){
@@ -213,14 +220,14 @@ plot.polar.clust <- function(x, type=c("b", "l", "p", "n"), sector, fill=TRUE, l
     }
 
     # Branches
-    if(fill)
+    if(fill && type != "n")
         branches(x, sector=sector, fill=TRUE, lightness=.7)
     if(missing(type) || type %in% c("b", "l"))
         lines(x, lwd=c(1,10), sector=sector)
     if(missing(type) || type %in% c("b", "p"))
         points(x, sector=sector, pch=20)
     if(labels)
-        text(x, sector=sector, cex=label.size, col=label.col, las=las)
+        text(x, sector=sector, cex=label.size, col=label.col, las=las, xpd=TRUE)
     if(axes) axis(1, at=r, pos=0)
 }
 
@@ -231,7 +238,7 @@ plot.polar.clust <- function(x, type=c("b", "l", "p", "n"), sector, fill=TRUE, l
 #'   a \code{\link{legend}}.
 #' @rdname plot.polar.clust
 #' @export
-lines.polar.clust <- function(x, lwd=c(1,10), col, sector=c(0, 2*pi), ...){
+lines.polar.clust <- function(x, lwd=c(1,10), col, sector=c(0, 2*pi), hang, ...){
     if(missing(col)){
         col <- if("coli" %in% names(x)) c(x$coli, x$colj) else par("fg")
     } else if(is.null(col) || col %in% c(FALSE, NA)){
@@ -240,6 +247,10 @@ lines.polar.clust <- function(x, lwd=c(1,10), col, sector=c(0, 2*pi), ...){
     w <- c(x$ni, x$nj)
     my.sin <- function(x) sin(x*diff(range(sector))+sector[1])
     my.cos <- function(x) cos(x*diff(range(sector))+sector[1])
+    if(!missing(hang)){
+        x$ri <- ifelse(x$i < 0, x$r + hang, x$ri)
+        x$rj <- ifelse(x$j < 0, x$r + hang, x$rj)
+    }
     segments(rep(x[, r*my.sin(a)], 2),
              rep(x[, r*my.cos(a)], 2),
              c(x[, ri*my.sin(ai)], x[, rj*my.sin(aj)]),
@@ -304,11 +315,15 @@ text.polar.clust <- function(x, r, sector=c(0,2*pi), cex=par("cex"), col, las=pa
 }
 #' @rdname plot.polar.clust
 #' @export
-points.polar.clust <- function(x, sector=c(0,2*pi), col, ...){
+points.polar.clust <- function(x, col, sector=c(0,2*pi), hang, ...){
     if(missing(col)){
         col <- if("coli" %in% names(x)) c(x[i < 0, coli], x[j < 0, colj]) else par("fg")
     } else if(is.null(col) || col %in% c(FALSE, NA)){
         col <- par("fg")
+    }
+    if(!missing(hang)){
+        x$ri <- ifelse(x$i < 0, x$r + hang, x$ri)
+        x$rj <- ifelse(x$j < 0, x$r + hang, x$rj)
     }
     my.sin <- function(x) sin(x*diff(range(sector))+sector[1])
     my.cos <- function(x) cos(x*diff(range(sector))+sector[1])
